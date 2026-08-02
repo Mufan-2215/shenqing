@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英本经济申请匹配度计算器</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --ink: #1f1b16;
+    --muted: #6b6258;
+    --accent: #c1502e;
+    --line: #e6ded3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 24px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1180px; margin: 0 auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); }
+  label { display: block; font-size: 13px; margin: 10px 0 4px; color: var(--ink); }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  input[type=text], input[type=number], select, input[type=password] {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 13.5px;
+    background: #fffdfb;
+  }
+  input[type=range] { width: 100%; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 14px;
+  }
+  button.secondary { background: white; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .score-big { font-size: 46px; font-weight: 700; margin: 4px 0; }
+  .tier-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: white;
+  }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12.5px; }
+  .bar-label { width: 190px; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #eee6db; border-radius: 6px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); }
+  .bar-value { width: 34px; text-align: right; color: var(--muted); }
+  .warn-box {
+    background: #fbf1e2; border: 1px solid #ecd8ae; border-radius: 8px;
+    padding: 8px 12px; font-size: 12.5px; margin-top: 10px; color: #7a5a1e;
+  }
+  .info-box {
+    background: #eef3ee; border: 1px solid #cfe0cf; border-radius: 8px;
+    padding: 8px 12px; font-size: 12px; margin-top: 8px; color: #2f4a34;
+  }
+  .ai-box {
+    white-space: pre-wrap; background: #f7f4ee; border-radius: 8px;
+    padding: 12px 14px; font-size: 13.5px; line-height: 1.6; border: 1px solid var(--line);
+  }
+  .source-tag { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .empty-hint { color: var(--muted); font-size: 13px; }
+  .footer-note { max-width: 1180px; margin: 24px auto 0; font-size: 11.5px; color: var(--muted); }
+  .subject-row { display: grid; grid-template-columns: 1.4fr 0.8fr auto; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .subject-row button { margin-top: 0; padding: 6px 10px; font-size: 12px; }
+  .strategy-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: #fffdfb; }
+  .strategy-card h3 { margin: 0 0 4px; font-size: 14px; }
+  .strategy-card .strategy-desc { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+  .school-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; border-bottom: 1px dashed var(--line); }
+  .school-row:last-child { border-bottom: none; }
+  .tier-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; color: white; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>英本经济申请匹配度计算器</h1>
+<p class="subtitle">Prototype：中国国际高中生 → 申英本经济 → 填个人信息 → 算匹配度 → AI生成建议 → 加入选校清单</p>
+
+<div class="layout">
+
+  <!-- 左侧：输入 -->
+  <div>
+    <div class="card">
+      <h2>① 申请人信息（目标专业：Economics）</h2>
+
+      <label>姓名</label>
+      <input type="text" id="name" value="申请人A">
+
+      <label>高中背景类型（选一个类别会自动帮你把下面几项填成典型情况，选完仍可以手动改）</label>
+      <select id="hsPreset">
+        <option value="top_tier">头部国际学校 —— 圈内公开信息：顶尖校预估分把关往往极严格(如AS阶段要考到87%才给A*预估，比一般学校80%的标准高很多)</option>
+        <option value="other_school" selected>其他国际学校 —— 不确定的话选这个，按全国平均水平估算可信度</option>
+        <option value="private_agency">私营非学校机构 —— 不是正规学校，是提供预估分/规划服务的机构，据了解部分存在把关不严、给分偏松的情况(如模考B给预测A)</option>
+      </select>
+      <div class="hint" id="hsPresetNote"></div>
+
+      <div id="customHsFields">
+        <div class="row2">
+          <div>
+            <label>课程体系</label>
+            <select id="curriculum">
+              <option value="A-Level">A-Level</option>
+              <option value="IB">IB</option>
+              <option value="China_National">中国大陆高中体制</option>
+              <option value="Other">其他</option>
+            </select>
+          </div>
+          <div>
+            <label>机构类型</label>
+            <select id="schoolType">
+              <option value="independent_private">私立/国际学校</option>
+              <option value="state_public">公立/国际部</option>
+              <option value="private_agency">私营机构（非学校性质）</option>
+            </select>
+          </div>
+        </div>
+        <label>目标大学对该高中/课程体系的认可程度</label>
+        <select id="recognition">
+          <option value="feeder">稳定生源校 (feeder)</option>
+          <option value="recognized_track_record">认可，且有历年录取数据</option>
+          <option value="recognized_no_track_record" selected>认可课程体系，但无该校历史数据</option>
+          <option value="unrecognized_needs_review">需额外审核/预科</option>
+        </select>
+        <label>你了解到的情况：这个学校/机构给预估分严不严？（自评即可，不用算精确数字，上面选类别时已自动带出参考值）</label>
+        <select id="predictedRigor">
+          <option value="strict">严格/压分型</option>
+          <option value="normal" selected>正常/跟着考试局标准走</option>
+          <option value="loose">宽松/爱拔高型</option>
+        </select>
+        <div class="hint">参考基准：英国2025年数据显示，全国约一半学生被预测AAA+，但实际达成的只有约26%，说明"正常"档本身就已经偏乐观，"宽松"档只会更夸张。</div>
+      </div>
+
+      <label>分科目成绩（每科可单独标记"预估"或"已出成绩"——比如IAL模块化考试常见数学已考出实考成绩，其他科目还是预估）</label>
+      <div id="subjectRows"></div>
+      <button type="button" id="addSubjectBtn" class="secondary" style="margin-top:6px;">+ 添加一科</button>
+      <div class="hint">系统取"最优3科"平均分对齐官网整体offer(如A*AA)；已出实考成绩的科目不受预估可信度折算影响，只有仍是预估的科目才会按高中背景打折。同时单独核对数学/经济单科是否达到硬性要求。</div>
+
+      <label>语言考试类型</label>
+      <select id="languageTestType">
+        <option value="ielts" selected>IELTS</option>
+        <option value="toefl">TOEFL iBT</option>
+      </select>
+
+      <div id="ieltsFields">
+        <label>IELTS 各单项分（很多学校对单项有最低要求，总分够但单项不够也可能不合格）</label>
+        <div class="row2">
+          <div>
+            <label style="margin-top:0;">听力 Listening</label>
+            <input type="number" id="ieltsL" value="7.5" step="0.5" min="0" max="9">
+          </div>
+          <div>
+            <label style="margin-top:0;">阅读 Reading</label>
+            <input type="number" id="ieltsR" value="7.5" step="0.5" min="0" max="9">
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label style="margin-top:0;">写作 Writing</label>
+            <input type="number" id="ieltsW" value="6.5" step="0.5" min="0" max="9">
+          </div>
+          <div>
+            <label style="margin-top:0;">口语 Speaking</label>
+            <input type="number" id="ieltsS" value="7.0" step="0.5" min="0" max="9">
+          </div>
+        </div>
+      </div>
+
+      <div id="toeflFields" style="display:none;">
+        <label>TOEFL iBT 总分 (0-120)</label>
+        <input type="number" id="toeflTotal" value="100" step="1" min="0" max="120">
+        <div class="hint">按ETS 2024年官方TOEFL-IELTS对照表换算成IELTS近似值，仅为近似对齐、非精确等价；TOEFL模式下暂不支持单项门槛核对。</div>
+      </div>
+
+      <div class="info-box" id="languageOverallBox"></div>
+
+      <label>TMUA 成绩（可选——Cambridge/LSE/UCL/Imperial经济学相关专业必考，Warwick可选且考高分能降低门槛；没考可留空）</label>
+      <input type="number" id="tmuaScore" placeholder="留空表示未考，范围1.0-9.0" step="0.1" min="1" max="9">
+      <div class="hint">2024年起TMUA为单一0-9.0分制，均分约4.5；据UCL官网，约6.5分及以上属于有竞争力的水平。</div>
+
+      <div class="hint">（科研/实习/文书/推荐信/竞赛这些软性材料暂不纳入本版本，先把成绩+语言+高中背景这条硬数据线做扎实。）</div>
+    </div>
+
+    <div class="card">
+      <h2>② 目标学校（G5 + 王曼爱华，经济方向）</h2>
+      <label>选择项目</label>
+      <select id="program"></select>
+
+      <label>参考基准</label>
+      <select id="benchmarkMode">
+        <option value="cn" selected>中国区实际竞争门槛（推荐：官网数字不能反映真实录取线）</option>
+        <option value="official">官网公开门槛（不含区域竞争修正）</option>
+      </select>
+
+      <div class="hint" id="programDetail"></div>
+      <div class="info-box" id="programTip"></div>
+    </div>
+
+    <button id="computeBtn">计算匹配度 →</button>
+  </div>
+
+  <!-- 右侧：结果 -->
+  <div>
+    <div class="card">
+      <h2>③ 匹配度结果</h2>
+      <div class="info-box">
+        评级说明：<b>A</b> 冲刺可上/优势申请(90-100分)　<b>B</b> 匹配良好(75-89分)　<b>C</b> 有竞争力但存在短板(60-74分)　<b>D</b> 冲刺校，录取有难度(40-59分)　<b>F</b> 差距较大(0-39分)。
+      </div>
+      <div id="resultEmpty" class="empty-hint">填写左侧信息后点击"计算匹配度"查看结果。</div>
+      <div id="resultBody" style="display:none;">
+        <div class="score-big" id="scoreBig">--</div>
+        <span class="tier-badge" id="tierBadge">--</span>
+        <div style="margin-top:14px;" id="barsContainer"></div>
+        <div id="warningsContainer"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>④ AI 生成个性化申请建议</h2>
+      <div class="row2">
+        <div>
+          <label>API 提供方</label>
+          <select id="aiProvider">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
+        <div>
+          <label>API Key (仅本机内存中使用，不会保存)</label>
+          <input type="password" id="apiKey" placeholder="留空则使用离线模板兜底">
+        </div>
+      </div>
+      <button id="aiBtn" class="secondary" disabled>生成 AI 建议</button>
+      <div id="aiOutput" style="margin-top:12px; display:none;">
+        <div class="ai-box" id="aiText"></div>
+        <div class="source-tag" id="aiSource"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⑤ UCAS 五选校方案生成器</h2>
+      <div class="hint">基于当前左侧填写的申请人资料，对9所目标校全部打分，按"冲刺/匹配/稳妥"分档，自动组合出3种5校方案。</div>
+      <div class="info-box">分档对应：<b>A/B</b> = 稳妥　<b>C</b> = 匹配　<b>D/F</b> = 冲刺（等级含义见上方③的说明）。
+        例外：G5五所（Oxford/Cambridge/LSE/UCL/Imperial）就算学术分打到A/B也不计入"稳妥"——Oxford要看面试+TARA、Cambridge要看面试+TMUA、LSE/UCL/Imperial的这三个专业都强制要求TMUA(不提交不予考虑)，录取不确定性都不是纯成绩匹配分能覆盖的。</div>
+      <button id="generateStrategyBtn" class="secondary" style="margin-top:10px;">生成三种UCAS方案</button>
+      <div id="strategyOutput" style="margin-top:12px; display:none;"></div>
+    </div>
+
+    <div class="card">
+      <h2>⑥ 我的选校清单 (user action)</h2>
+      <button id="addShortlistBtn" class="secondary" disabled>+ 加入选校清单</button>
+      <table id="shortlistTable" style="display:none;">
+        <thead><tr><th>申请人</th><th>项目</th><th>综合分</th><th>等级</th></tr></thead>
+        <tbody id="shortlistBody"></tbody>
+      </table>
+      <div id="shortlistEmpty" class="empty-hint">还没有加入任何项目。</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="footer-note">
+  9所学校的A-Level门槛/是否需要额外测试(TARA/TMUA)/是否面试/contextual政策，均基于2025-2026学年各校官网及UCAS公开信息整理。Imperial的项目是"Economics, Finance and Data Science"，不是纯经济学位，仅作经济相关方向的补充选项。
+  "中国区实际竞争门槛"：Cambridge(约80%录取者达A*A*A*)、LSE(2023年中国录取者人手3-5个A*，93%数学预估A*)为有统计数据支持的实锤；
+  其余5所暂无具体统计，按国际生竞争普遍更激烈这一已证实规律做了+0.10~0.15的估算上浮，已在页面上标注"估算值"。
+  KCL的完整年级tariff未在官网检索到完整数字，已标注为近似估算。"某深圳知名大型自习室预估分把关严格"为圈内公开可查信息；"某上海知名申请机构预估分把关较松"为用户了解到的情况，非官方核实数据，仅作demo演示用途，不指向任何具体机构。
+</p>
+
+<script>
+/* =========================================================
+   1. 目标学校数据 — G5 + 王曼爱华，经济方向
+   数值来源：各校2025/2026学年官网 Entry Requirements + UCAS 公开信息
+   GPA换算口径：A*=4.3, A=4.0, B=3.5, C=3.0（自定义换算，非官方标准）
+   ========================================================= */
+// gpaP75Official = 官网公开的标准offer换算分；gpaP75CN = 中国区申请者实际竞争门槛。
+// cnConfidence: "documented"(有实锤统计数据) / "estimated"(无具体统计，按国际生普遍规律估算+0.10~0.15)
+const PROGRAMS = {
+  oxford_em: {
+    label: "Oxford — Economics & Management",
+    mathMin: 4.0, econMin: null,
+    gpaP25: 4.05, gpaP75Official: 4.10, gpaP75CN: 4.28, cnConfidence: "estimated",
+    ieltsMin: 7.5, ieltsCompetitive: 8.0, ieltsSubMin: 7.0,
+    contextual: true, extraTest: "TARA (Test of Academic Reasoning for Admissions，原TSA)",
+    interview: true,
+    detail: "官网标准offer：A*AA(数学A)。中国区实际门槛：估算约4.20(暂无具体统计)。",
+    tip: "面试权重很高，笔试+面试综合评定，仅看学术分数不足以判断真实匹配度；中国区数据为估算，非实锤统计。"
+  },
+  cambridge_econ: {
+    label: "Cambridge — Economics",
+    mathMin: null, econMin: null,
+    gpaP25: 4.22, gpaP75Official: 4.10, gpaP75CN: 4.30, cnConfidence: "documented",
+    ieltsMin: 7.5, ieltsCompetitive: 8.0, ieltsSubMin: 7.0,
+    contextual: true, extraTest: "TMUA (Test of Mathematics for University Admission，原ECAA)",
+    interview: true,
+    detail: "官网最低offer：A*AA(4.10)。实锤数据：近年约80%录取者实际达到A*A*A*(4.30)。",
+    tip: "官网门槛只是地板，别只对着官网数字定位自己，真实竞争线接近满分。"
+  },
+  lse_econ: {
+    label: "LSE — BSc Economics",
+    mathMin: 4.3, econMin: null,
+    gpaP25: 3.80, gpaP75Official: 4.10, gpaP75CN: 4.25, cnConfidence: "documented",
+    ieltsMin: 7.0, ieltsCompetitive: 7.5, ieltsSubMin: 7.0,
+    contextual: true, extraTest: "TMUA (LSE经济学专业强制要求，不提供成绩不予考虑，建议目标6.5-7.0+)", interview: false,
+    detail: "官网标准offer：A*AA(数学A*)。实锤数据：2023年录取的中国学生人手3-5个A*，93%数学预估A*，89.6%经济预估A*。2026年入学起，BSc Economics及BSc Econometrics and Mathematical Economics均强制要求TMUA成绩。",
+    tip: "官网写的A*AA-AAB只是门槛，中国申请者真实录取画像远高于此，务必参考实锤数据而不是官网数字；TMUA未提交将直接不予考虑，务必提前报名。"
+  },
+  ucl_econ: {
+    label: "UCL — BSc Economics",
+    mathMin: 4.3, econMin: 4.0,
+    gpaP25: 3.93, gpaP75Official: 4.10, gpaP75CN: 4.20, cnConfidence: "estimated",
+    ieltsMin: 7.0, ieltsCompetitive: 7.5, ieltsSubMin: 6.5,
+    contextual: true, extraTest: "TMUA (UCL经济学专业强制要求，不是Maths/CS专业需要的)", interview: false,
+    detail: "官网标准offer：A*AA(数学A*)；官方contextual offer：A*AB。中国区门槛：估算约4.20(申请人数超4000、录取<400，竞争比10:1+，但无具体预估分统计)。",
+    tip: "若A-Level选修了Economics科目，必须拿到A；且UCL经济学专业强制要求TMUA，这一点很多人会漏掉。"
+  },
+  imperial_efds: {
+    label: "Imperial — BSc Economics, Finance and Data Science",
+    mathMin: 4.3, econMin: null,
+    gpaP25: 4.10, gpaP75Official: 4.10, gpaP75CN: 4.22, cnConfidence: "estimated",
+    ieltsMin: 7.0, ieltsCompetitive: 7.5, ieltsSubMin: 6.5,
+    contextual: true, extraTest: "TMUA (Imperial该专业强制要求，建议10月前考)", interview: false,
+    detail: "官网标准offer：A*AA，且数学必须是A*(Further Maths不能替代)。这是G5里唯一带浓厚数据科学/编程色彩的「泛经济」项目，不是纯经济学。",
+    tip: "注意这不是纯Economics学位，是经济+金融+数据科学的交叉项目，个人陈述需要体现编程/数据分析兴趣，不只是经济学本身。"
+  },
+  kcl_econ: {
+    label: "KCL — BSc Economics",
+    mathMin: 4.0, econMin: null,
+    gpaP25: 3.65, gpaP75Official: 4.10, gpaP75CN: 4.05, cnConfidence: "estimated",
+    ieltsMin: 7.0, ieltsCompetitive: 7.5, ieltsSubMin: 6.5,
+    contextual: true, extraTest: null, interview: false,
+    detail: "⚠数据高度不确定：官网仅明确数学需A级，完整tariff及中国区数据均未查到，此处按同类学校水平双重估算。",
+    tip: "官网明确会做contextual考量，但具体下调幅度未公开，建议直接联系招生办确认。"
+  },
+  manchester_econ: {
+    label: "Manchester — BAEcon Economics",
+    mathMin: null, econMin: null,
+    gpaP25: 3.50, gpaP75Official: 4.00, gpaP75CN: 3.95, cnConfidence: "estimated",
+    ieltsMin: 6.5, ieltsCompetitive: 7.0, ieltsSubMin: 6.0,
+    contextual: true, extraTest: null, interview: false,
+    detail: "官网标准offer：AAA；官方contextual offer：ABB。中国区门槛：估算约4.10(无具体统计)。",
+    tip: "这几所里学术门槛相对友好，但要求A-Level科目在其认可列表内，且倾向于两门相关学科的组合。"
+  },
+  edinburgh_econ: {
+    label: "Edinburgh — Economics MA",
+    mathMin: 3.5, econMin: null,
+    gpaP25: 3.30, gpaP75Official: 3.67, gpaP75CN: 3.60, cnConfidence: "estimated",
+    ieltsMin: 6.5, ieltsCompetitive: 7.0, ieltsSubMin: 5.5,
+    contextual: false, extraTest: null, interview: false,
+    detail: "官网标准offer：ABB(数学B)。中国区门槛：估算约3.80，未查到contextual具体数字。",
+    tip: "罗素集团里门槛相对最低的一所，说明「罗素集团」内部难度差异很大，不能一概而论。"
+  },
+  warwick_econ: {
+    label: "Warwick — BSc Economics",
+    mathMin: 4.0, econMin: null,
+    gpaP25: 3.82, gpaP75Official: 4.20, gpaP75CN: 4.15, cnConfidence: "estimated",
+    tmuaDiscount: { threshold: 6.5, reducedP75: 4.00 },
+    ieltsMin: 6.5, ieltsCompetitive: 7.0, ieltsSubMin: 6.0,
+    contextual: true, extraTest: "TMUA（可选，考出高分可将门槛从A*A*A降到AAA≈4.00）",
+    interview: false,
+    detail: "官网标准offer：A*A*A(数学A)；官方contextual offer：A*AB。已接近满分，中国区上浮空间有限。",
+    tip: "关键潜规则：TMUA考出高分，门槛直接从A*A*A降到AAA，这是官网写明的机制，普遍被忽视。"
+  }
+};
+
+// 权重预设：英国经济类申请常见的因素重要性分档（参考UK高校contextual admissions
+// 与各校官网披露的评估维度，标化考试维度用"是否需要额外测试"单独提示，不纳入统一打分）
+// 本版本先只做"硬数据"三件事：成绩(含高中可信度折算)、课程体系、语言。
+// 科研/实习/推荐信/文书/竞赛这些软性材料暂不纳入打分，等硬数据线做扎实了再加回来。
+const WEIGHTS = {
+  academic: 4,       // very important：预估成绩/最终成绩
+  curriculum: 3,      // important：课程体系严谨度
+  language: 2         // considered：IELTS
+};
+
+const GRADE_POINTS = { "A*": 4.3, "A": 4.0, "B": 3.5, "C": 3.0, "D": 2.5 };
+const SUBJECT_OPTIONS = ["Mathematics", "Further Mathematics", "Economics", "Physics", "Chemistry", "Biology", "Psychology", "History", "Other"];
+
+// 申请经济学时，招生官对数学/进阶数学/经济/心理这几门的分数更看重，
+// 选"最优3科"时优先照顾这几门(除非无关科目分数明显更高)；
+// 但真正拿去算平均分时，用的是这3门的真实分数，不做加权虚高——
+// 这个偏好只影响"选哪3门"，不影响"算出来是多少分"。
+const ECON_RELEVANT_SUBJECTS = ["Mathematics", "Further Mathematics", "Economics", "Psychology"];
+const RELEVANCE_SELECTION_BONUS = 0.15;
+
+function bestThreeAverage(subjects) {
+  const valid = subjects.filter(s => GRADE_POINTS[s.grade] !== undefined);
+  if (valid.length === 0) return 0;
+  const ranked = [...valid].sort((a, b) => {
+    const scoreA = GRADE_POINTS[a.grade] + (ECON_RELEVANT_SUBJECTS.includes(a.name) ? RELEVANCE_SELECTION_BONUS : 0);
+    const scoreB = GRADE_POINTS[b.grade] + (ECON_RELEVANT_SUBJECTS.includes(b.name) ? RELEVANCE_SELECTION_BONUS : 0);
+    return scoreB - scoreA;
+  });
+  const top = ranked.slice(0, 3).map(s => GRADE_POINTS[s.grade]);
+  return top.reduce((a, b) => a + b, 0) / top.length;
+}
+
+function findSubjectGrade(subjects, name) {
+  const found = subjects.find(s => s.name === name);
+  return found ? GRADE_POINTS[found.grade] : null;
+}
+
+const CURRICULUM_RIGOR = { "IB": 90, "A-Level": 88, "China_National": 70, "Other": 60 };
+const RECOGNITION_SCORE = {
+  "feeder": 100, "recognized_track_record": 85,
+  "recognized_no_track_record": 65, "unrecognized_needs_review": 30
+};
+const DEFAULT_PREDICTED_RELIABILITY = 62;
+
+// 高中背景分三大类：头部国际学校 / 其他国际学校 / 私营非学校机构。
+// 选类别只是帮忙把下面几项(课程体系/机构类型/认可度/预估严格度)填成典型默认值，
+// 用户仍可以在下面手动改，最终计算统一走 predictedRigor 那条路径，不做特殊硬编码分支。
+const CATEGORY_DEFAULTS = {
+  top_tier: {
+    curriculum: "A-Level", schoolType: "independent_private",
+    recognition: "recognized_track_record", predictedRigor: "strict",
+    note: "圈内公开信息：头部国际学校预估分评分标准往往很严格（例如AS阶段需考到87%才给A*预估，远高于一般学校80%的标准），预估分含金量高，甚至可能被实考成绩反超。"
+  },
+  other_school: {
+    curriculum: "A-Level", schoolType: "independent_private",
+    recognition: "recognized_no_track_record", predictedRigor: "normal",
+    note: "该类学校暂无专属历史数据，可信度按全国平均基准估算（全国约一半学生被预测AAA+，实际仅约26%达成）。"
+  },
+  private_agency: {
+    curriculum: "A-Level", schoolType: "private_agency",
+    recognition: "unrecognized_needs_review", predictedRigor: "loose",
+    note: "⚠据了解到的情况（非官方核实数据，因机构而异）：部分私营申请机构不是正规学校，预估分把关不严、给分偏松，可信度打折扣，建议用更保守的口径评估自己，并尽量补充标化考试成绩佐证真实水平。"
+  }
+};
+
+/* =========================================================
+   2. 打分逻辑
+   ========================================================= */
+function piecewisePercentileScore(value, p25, p75, floor = 0.0) {
+  if (p75 <= p25) return 60;
+  const span = p75 - p25;
+  if (value >= p75) {
+    const bonus = Math.min(1, (value - p75) / span);
+    return Math.min(100, 85 + bonus * 15);
+  }
+  if (value <= p25) {
+    const lowBound = p25 - span * floor;
+    if (lowBound >= p25) return value >= p25 ? 50 : 0; // floor=0(默认): p25本身记50分，以下记0
+    if (value <= lowBound) return 0;
+    return Math.max(0, 50 * (value - lowBound) / (p25 - lowBound));
+  }
+  return 50 + (value - p25) / span * 35;
+}
+
+// 计算"如果这门科目还是预估"时应该给多少可信度分（0-100）。
+// 是否真的要应用这个折算，由 computeMatch 里按每门科目的 predicted/final 状态决定。
+const PREDICTED_RIGOR_SCORE = { strict: 88, loose: 32 }; // "normal"/未选走下面的全国基准公式
+
+function predictedReliabilityBase(applicant) {
+  if (applicant.reliabilityOverride !== null && applicant.reliabilityOverride !== undefined) {
+    return { reliability: applicant.reliabilityOverride, warnings: [] };
+  }
+  if (applicant.predictedRigor === "strict" || applicant.predictedRigor === "loose") {
+    return { reliability: PREDICTED_RIGOR_SCORE[applicant.predictedRigor], warnings: [] };
+  }
+  let base = DEFAULT_PREDICTED_RELIABILITY;
+  if (applicant.curriculum === "IB") base += 8;
+  if (applicant.schoolType === "independent_private") base += 5;
+  return {
+    reliability: Math.min(95, base),
+    warnings: ["该高中打分严格程度未知/一般，可信度按全国平均基准估算（全国约一半学生被预测AAA+，实际仅约26%达成），建议补充该校近年录取结果以提高准确度。"]
+  };
+}
+
+// IELTS 四项算总分：先取平均，再按IELTS官方规则四舍五入到最近的0.5
+// （.25 进为 .5，.75 进为下一个整数）
+function computeIeltsOverall(l, r, w, s) {
+  const avg = (l + r + w + s) / 4;
+  return Math.round(avg * 2) / 2;
+}
+
+// ETS/IELTS 2024年官方对照表(0-120旧量表)区间下限，近似换算，非精确等价
+const TOEFL_TO_IELTS_TABLE = [
+  { min: 118, ielts: 9.0 }, { min: 115, ielts: 8.5 }, { min: 110, ielts: 8.0 },
+  { min: 102, ielts: 7.5 }, { min: 94, ielts: 7.0 }, { min: 79, ielts: 6.5 },
+  { min: 60, ielts: 6.0 }, { min: 46, ielts: 5.5 }, { min: 35, ielts: 5.0 },
+  { min: 0, ielts: 4.5 }
+];
+function convertToeflToIelts(toefl) {
+  for (const row of TOEFL_TO_IELTS_TABLE) {
+    if (toefl >= row.min) return row.ielts;
+  }
+  return 4.5;
+}
+
+function computeMatch(applicant, program, benchmarkMode) {
+  const warnings = [];
+
+  let gpaP75 = benchmarkMode === "official" ? program.gpaP75Official : program.gpaP75CN;
+  if (benchmarkMode !== "official") {
+    if (program.cnConfidence === "documented") {
+      warnings.push(`已按中国区真实竞争门槛计算（有统计数据支持，非仅官网标准）。`);
+    } else {
+      warnings.push(`已按中国区竞争门槛计算，但该校暂无具体统计数据，此门槛为估算值，仅供参考。`);
+    }
+  }
+
+  // TMUA 相关：Warwick 官网写明TMUA考出高分可以把门槛从A*A*A降到AAA；
+  // Cambridge/UCL(经济学)强制要求TMUA，这里只做"是否有竞争力"的提示，不改门槛
+  // (因为TMUA是必考项，不是"考好了可以降门槛"的可选优惠机制)。
+  if (applicant.tmuaScore !== null && applicant.tmuaScore !== undefined && !isNaN(applicant.tmuaScore)) {
+    if (program.tmuaDiscount && applicant.tmuaScore >= program.tmuaDiscount.threshold) {
+      gpaP75 = Math.min(gpaP75, program.tmuaDiscount.reducedP75);
+      warnings.push(`TMUA成绩达到${program.tmuaDiscount.threshold}分以上，已按官网机制将成绩门槛下调模拟计算。`);
+    } else if (program.extraTest && program.extraTest.includes("TMUA")) {
+      if (applicant.tmuaScore >= 6.5) {
+        warnings.push(`TMUA成绩${applicant.tmuaScore}分，达到有竞争力的水平(参考：6.5分及以上)。`);
+      } else if (applicant.tmuaScore < 4.5) {
+        warnings.push(`TMUA成绩${applicant.tmuaScore}分，低于2024年起的全体均分(约4.5)，该校对TMUA是硬性要求，建议加强练习。`);
+      }
+    }
+  } else if (program.extraTest && program.extraTest.includes("TMUA")) {
+    warnings.push("该项目需要TMUA成绩但你还未填写，建议尽早了解考试安排。");
+  }
+
+  const predictedAverage = bestThreeAverage(applicant.subjects);
+  const rawGpaScore = piecewisePercentileScore(predictedAverage, program.gpaP25, gpaP75);
+
+  // 可信度只作用在"最优3科"里仍然是预估状态的科目上；已经出了实考成绩的科目
+  // 不需要打折扣，视为100%可信。
+  const topThree = [...applicant.subjects]
+    .filter(s => GRADE_POINTS[s.grade] !== undefined)
+    .sort((a, b) => GRADE_POINTS[b.grade] - GRADE_POINTS[a.grade])
+    .slice(0, 3);
+  const { reliability: reliabilityBase, warnings: relWarnings } = predictedReliabilityBase(applicant);
+  const finalCount = topThree.filter(s => s.status === "final").length;
+  const predictedCount = topThree.length - finalCount;
+  const reliability = topThree.length > 0
+    ? (finalCount * 100 + predictedCount * reliabilityBase) / topThree.length
+    : reliabilityBase;
+  if (predictedCount > 0) {
+    warnings.push(...relWarnings);
+  } else if (topThree.length > 0) {
+    warnings.push("最优3科都已是实考成绩，不需要预估可信度折算。");
+  }
+
+  let effectiveAcademicScore = rawGpaScore * (0.5 + 0.5 * reliability / 100);
+
+  // 单科硬性门槛检查：很多学校对数学(有时也对经济)单科有明确的最低等级要求，
+  // 光看"最优3科平均分"会掩盖这种一票否决式的风险。
+  const mathGrade = findSubjectGrade(applicant.subjects, "Mathematics");
+  if (program.mathMin !== null && program.mathMin !== undefined) {
+    if (mathGrade === null) {
+      warnings.push("该项目通常对数学单科有明确等级要求，但未填写数学科目预估成绩，建议补充。");
+    } else if (mathGrade < program.mathMin) {
+      warnings.push(`该项目数学单科最低要求约${program.mathMin}分对应等级，你的数学预估未达标，这通常是硬性门槛，可能被直接拒绝，而不只是拉低平均分。`);
+      effectiveAcademicScore = Math.min(effectiveAcademicScore, 40);
+    }
+  }
+  const econGrade = findSubjectGrade(applicant.subjects, "Economics");
+  if (program.econMin !== null && program.econMin !== undefined && econGrade !== null && econGrade < program.econMin) {
+    warnings.push(`该项目若A-Level选修了Economics，通常要求达到约${program.econMin}分对应等级，你的经济预估未达标。`);
+    effectiveAcademicScore = Math.min(effectiveAcademicScore, 55);
+  }
+  const schoolRecognitionScore = RECOGNITION_SCORE[applicant.recognition] ?? 60;
+  const curriculumScore = CURRICULUM_RIGOR[applicant.curriculum] ?? 60;
+
+  // 语言成绩(IELTS)在英国本科申请里通常是"conditional offer"的入学前条件，
+  // 不是招生官筛选申请人时看重的核心竞争力指标——就算现在没达标，通常也不影响
+  // 拿到offer本身，只是拿到offer后、正式入学前需要补齐(用于换CAS)。
+  // 所以这里只做graduated打分+提示，不再对未达标做断崖式扣分。
+  const languageScore = piecewisePercentileScore(applicant.ieltsOverall, program.ieltsMin, program.ieltsCompetitive);
+  if (applicant.ieltsOverall < program.ieltsMin) {
+    warnings.push("IELTS总分暂未达到官网要求，但这通常是conditional offer入学前需满足的条件，不太影响能否拿到offer本身，建议后续补齐即可。");
+  }
+  if (program.ieltsSubMin !== null && program.ieltsSubMin !== undefined && applicant.ieltsMinSub < program.ieltsSubMin) {
+    warnings.push(`该项目要求单项不低于${program.ieltsSubMin}，你有单项(${applicant.ieltsMinSub})未达标，同样属于入学前需满足的条件，建议针对性补强，但不影响当前匹配度评估。`);
+  }
+
+  if (program.contextual && ["recognized_no_track_record", "unrecognized_needs_review"].includes(applicant.recognition)) {
+    warnings.push("该项目公开表示会做 contextual admissions 考量，建议在个人陈述/推荐信中主动说明背景，门槛可能有下调空间（具体幅度请以官网/招生办为准）。");
+  }
+  if (program.extraTest) {
+    warnings.push("该项目需要额外测试：" + program.extraTest);
+  }
+  if (program.interview) {
+    warnings.push("该项目有面试环节，学术分数达标不代表最终会被录取。");
+  }
+
+  const subScores = {
+    "学术核心(已按高中可信度折算)": effectiveAcademicScore,
+    "高中认可度": schoolRecognitionScore,
+    "课程体系严谨度": curriculumScore,
+    "语言成绩(IELTS)": languageScore
+  };
+
+  const weighted = [
+    [effectiveAcademicScore, WEIGHTS.academic],
+    [curriculumScore, WEIGHTS.curriculum],
+    [languageScore, WEIGHTS.language]
+  ];
+  const totalWeight = weighted.reduce((s, [, w]) => s + w, 0);
+  const composite = weighted.reduce((s, [v, w]) => s + v * w, 0) / totalWeight;
+
+  if (reliability < 55) {
+    warnings.push("预估成绩可信度偏低，建议在申请材料中补充更多可验证的学术证明(如TMUA/TARA成绩、竞赛)。");
+  }
+
+  const { tier, letter, color } = tierFromScore(composite);
+  return {
+    composite: Math.round(composite * 10) / 10, tier, letter, color, subScores, warnings,
+    predictedAverage: Math.round(predictedAverage * 100) / 100
+  };
+}
+
+function tierFromScore(score) {
+  if (score >= 90) return { tier: "冲刺可上 / 优势申请 (Excellent Match)", letter: "A", color: "#2f7a4f" };
+  if (score >= 75) return { tier: "匹配良好 (Strong Match)", letter: "B", color: "#4f8a5a" };
+  if (score >= 60) return { tier: "有竞争力但存在短板 (Competitive)", letter: "C", color: "#b8862c" };
+  if (score >= 40) return { tier: "冲刺校，录取有难度 (Reach)", letter: "D", color: "#c1502e" };
+  return { tier: "差距较大 (Significant Gap)", letter: "F", color: "#b23b3b" };
+}
+
+/* =========================================================
+   2.5 UCAS 五选校方案生成器
+   把letter等级归到三个桶：稳妥(A/B) / 匹配(C) / 冲刺(D/F)，
+   再按"激进/正常/稳健"三种模板各挑5所组成方案。桶里数量不够时，
+   从相邻桶里借，并在rationale里如实说明。
+   ========================================================= */
+function bucketOf(letter) {
+  if (letter === "A" || letter === "B") return "safe";
+  if (letter === "C") return "match";
+  return "reach"; // D or F
+}
+
+// G5五所(Oxford/Cambridge/LSE/UCL/Imperial)都不能算"稳妥"：Oxford要看面试+TARA、
+// Cambridge要看面试+TMUA、LSE/UCL/Imperial的这三个专业都强制要求TMUA(不提交不予考虑)，
+// 录取都有很强的不可预测性，单纯的成绩匹配分覆盖不了这些风险，所以就算学术分打到A/B也最多算"匹配"。
+const G5_NEVER_SAFE = ["oxford_em", "cambridge_econ", "lse_econ", "ucl_econ", "imperial_efds"];
+function computeBucket(key, letter) {
+  const bucket = bucketOf(letter);
+  if (bucket === "safe" && G5_NEVER_SAFE.includes(key)) return "match";
+  return bucket;
+}
+
+const STRATEGY_TEMPLATES = [
+  { key: "aggressive", label: "激进/冲刺", need: { reach: 4, match: 1, safe: 0 },
+    desc: "使劲冲：5个里4个是冲刺校(D/F也照放，不因为分数低就回避)，只留1个匹配校托底，完全不留安全垫。" },
+  { key: "balanced", label: "正常/匹配", need: { reach: 1, match: 3, safe: 1 },
+    desc: "以匹配校为主力(3个)，但仍保留1个冲刺校搏上限，再放1个稳妥垫底，不是纯保守。" },
+  { key: "steady", label: "稳健", need: { reach: 0, match: 2, safe: 3 },
+    desc: "不放冲刺校，以确保有学上为最优先，匹配+稳妥打底。" }
+];
+
+// UCAS 硬规则：同一年不能同时申请牛津和剑桥，5校方案里这两个只能二选一。
+const MUTUALLY_EXCLUSIVE_GROUPS = [["oxford_em", "cambridge_econ"]];
+function violatesExclusivity(key, used) {
+  return MUTUALLY_EXCLUSIVE_GROUPS.some(
+    group => group.includes(key) && group.some(other => other !== key && used.has(other))
+  );
+}
+
+function pickFromBucket(buckets, bucketName, count, used) {
+  const picked = [];
+  for (const item of buckets[bucketName]) {
+    if (picked.length >= count) break;
+    if (used.has(item.key)) continue;
+    if (violatesExclusivity(item.key, used)) continue;
+    picked.push(item);
+    used.add(item.key);
+  }
+  return picked;
+}
+
+function generateStrategies(allResults) {
+  // allResults: [{key, label, result}], 已按 composite 降序排列
+  const buckets = { safe: [], match: [], reach: [] };
+  allResults.forEach(r => buckets[computeBucket(r.key, r.result.letter)].push(r));
+
+  return STRATEGY_TEMPLATES.map(tpl => {
+    const used = new Set();
+    const notes = [];
+    let picks = [];
+
+    ["safe", "match", "reach"].forEach(bucketName => {
+      const need = tpl.need[bucketName];
+      const got = pickFromBucket(buckets, bucketName, need, used);
+      if (got.length < need) {
+        notes.push(`「${bucketName === "safe" ? "稳妥" : bucketName === "match" ? "匹配" : "冲刺"}」档只有${got.length}所可选(需要${need}所)，已按${tpl.label}方案的风格从其余学校里补足。`);
+      }
+      picks = picks.concat(got);
+    });
+
+    // 补齐剩余名额时，三种方案的补法要不一样，不然会补出一模一样的名单：
+    // 激进 -> 从"还没被选"的学校里挑分数最低(最有挑战性)的补；
+    // 正常/稳健 -> 挑分数最高(最保险)的补。
+    if (picks.length < 5) {
+      const remaining = allResults.filter(r => !used.has(r.key));
+      const ordered = tpl.key === "aggressive" ? [...remaining].reverse() : remaining;
+      for (const r of ordered) {
+        if (picks.length >= 5) break;
+        if (violatesExclusivity(r.key, used)) continue;
+        picks.push(r);
+        used.add(r.key);
+      }
+    }
+
+    const finalPicks = picks.slice(0, 5).sort((a, b) => b.result.composite - a.result.composite);
+    return { ...tpl, picks: finalPicks, notes };
+  });
+}
+
+/* =========================================================
+   3. 页面交互
+   ========================================================= */
+const programSelect = document.getElementById("program");
+Object.entries(PROGRAMS).forEach(([key, p]) => {
+  const opt = document.createElement("option");
+  opt.value = key; opt.textContent = p.label;
+  programSelect.appendChild(opt);
+});
+function updateProgramDetail() {
+  const p = PROGRAMS[programSelect.value];
+  const mode = document.getElementById("benchmarkMode").value;
+  const confidenceTag = p.cnConfidence === "documented" ? "【中国区数据：有实锤统计】" : "【中国区数据：估算值，非实锤】";
+  document.getElementById("programDetail").textContent =
+    p.detail + (mode === "cn" ? "  " + confidenceTag : "  【当前使用：官网标准，未做区域竞争修正】");
+  document.getElementById("programTip").textContent = "潜规则/提示：" + p.tip;
+}
+programSelect.addEventListener("change", updateProgramDetail);
+document.getElementById("benchmarkMode").addEventListener("change", updateProgramDetail);
+updateProgramDetail();
+
+const hsPresetSelect = document.getElementById("hsPreset");
+function updateHsPreset() {
+  const val = hsPresetSelect.value;
+  const defaults = CATEGORY_DEFAULTS[val];
+  document.getElementById("curriculum").value = defaults.curriculum;
+  document.getElementById("schoolType").value = defaults.schoolType;
+  document.getElementById("recognition").value = defaults.recognition;
+  document.getElementById("predictedRigor").value = defaults.predictedRigor;
+  document.getElementById("hsPresetNote").textContent = defaults.note;
+}
+hsPresetSelect.addEventListener("change", updateHsPreset);
+updateHsPreset();
+
+/* ---------------- 分科目预估成绩 ---------------- */
+const subjectRowsContainer = document.getElementById("subjectRows");
+let subjectRowCount = 0;
+
+function addSubjectRow(defaultSubject, defaultGrade, defaultStatus) {
+  if (subjectRowCount >= 6) return;
+  subjectRowCount++;
+  const rowId = "subjectRow" + subjectRowCount;
+  const row = document.createElement("div");
+  row.className = "subject-row";
+  row.id = rowId;
+  row.style.gridTemplateColumns = "1.2fr 0.6fr 0.9fr auto";
+
+  const subjectSelect = document.createElement("select");
+  SUBJECT_OPTIONS.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    if (s === defaultSubject) opt.selected = true;
+    subjectSelect.appendChild(opt);
+  });
+
+  const gradeSelect = document.createElement("select");
+  Object.keys(GRADE_POINTS).forEach(g => {
+    const opt = document.createElement("option");
+    opt.value = g; opt.textContent = g;
+    if (g === defaultGrade) opt.selected = true;
+    gradeSelect.appendChild(opt);
+  });
+
+  const statusSelect = document.createElement("select");
+  [["predicted", "预估"], ["final", "已出实考成绩"]].forEach(([val, text]) => {
+    const opt = document.createElement("option");
+    opt.value = val; opt.textContent = text;
+    if (val === defaultStatus) opt.selected = true;
+    statusSelect.appendChild(opt);
+  });
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "secondary";
+  removeBtn.textContent = "删除";
+  removeBtn.addEventListener("click", () => row.remove());
+
+  row.appendChild(subjectSelect);
+  row.appendChild(gradeSelect);
+  row.appendChild(statusSelect);
+  row.appendChild(removeBtn);
+  subjectRowsContainer.appendChild(row);
+}
+
+// 默认画像：数学已经模块化考出实考A*(IAL常见)，经济/Further Maths/Physics还是预估
+addSubjectRow("Mathematics", "A*", "final");
+addSubjectRow("Economics", "A*", "predicted");
+addSubjectRow("Further Mathematics", "A", "predicted");
+addSubjectRow("Physics", "A", "predicted");
+
+document.getElementById("addSubjectBtn").addEventListener("click", () => addSubjectRow("Other", "A", "predicted"));
+
+function collectSubjects() {
+  return Array.from(subjectRowsContainer.children).map(row => {
+    const selects = row.querySelectorAll("select");
+    return { name: selects[0].value, grade: selects[1].value, status: selects[2].value };
+  });
+}
+
+function getLanguageScores() {
+  const mode = document.getElementById("languageTestType").value;
+  if (mode === "toefl") {
+    const toefl = parseFloat(document.getElementById("toeflTotal").value) || 0;
+    const overall = convertToeflToIelts(toefl);
+    return { mode, overall, minSub: overall, raw: toefl };
+  }
+  const l = parseFloat(document.getElementById("ieltsL").value) || 0;
+  const r = parseFloat(document.getElementById("ieltsR").value) || 0;
+  const w = parseFloat(document.getElementById("ieltsW").value) || 0;
+  const s = parseFloat(document.getElementById("ieltsS").value) || 0;
+  return { mode, overall: computeIeltsOverall(l, r, w, s), minSub: Math.min(l, r, w, s) };
+}
+
+function updateLanguageHint() {
+  const mode = document.getElementById("languageTestType").value;
+  document.getElementById("ieltsFields").style.display = mode === "ielts" ? "block" : "none";
+  document.getElementById("toeflFields").style.display = mode === "toefl" ? "block" : "none";
+
+  const { overall, minSub, raw } = getLanguageScores();
+  const box = document.getElementById("languageOverallBox");
+  if (mode === "toefl") {
+    box.textContent = `TOEFL ${raw} 分 ≈ IELTS ${overall}（近似换算，无法核对单项门槛）`;
+  } else {
+    box.textContent = `IELTS总分：${overall}（按官方规则四舍五入到0.5）　单项最低：${minSub}`;
+  }
+}
+["ieltsL", "ieltsR", "ieltsW", "ieltsS", "toeflTotal"].forEach(id => {
+  document.getElementById(id).addEventListener("input", updateLanguageHint);
+});
+document.getElementById("languageTestType").addEventListener("change", updateLanguageHint);
+updateLanguageHint();
+
+function buildApplicantFromForm() {
+  const curriculum = document.getElementById("curriculum").value;
+  const schoolType = document.getElementById("schoolType").value;
+  const recognition = document.getElementById("recognition").value;
+  const predictedRigor = document.getElementById("predictedRigor").value;
+  const reliabilityOverride = null; // 统一走 predictedRigor 路径，不再用硬编码覆盖值
+
+  const { overall, minSub } = getLanguageScores();
+  const tmuaVal = document.getElementById("tmuaScore").value;
+
+  return {
+    name: document.getElementById("name").value || "未命名申请人",
+    subjects: collectSubjects(),
+    curriculum, schoolType, recognition, predictedRigor, reliabilityOverride,
+    ieltsOverall: overall,
+    ieltsMinSub: minSub,
+    tmuaScore: tmuaVal === "" ? null : parseFloat(tmuaVal)
+  };
+}
+
+let lastResult = null;
+let lastApplicantName = "";
+let lastProgramLabel = "";
+
+document.getElementById("computeBtn").addEventListener("click", () => {
+  const applicant = buildApplicantFromForm();
+  const program = PROGRAMS[programSelect.value];
+  const benchmarkMode = document.getElementById("benchmarkMode").value;
+  const result = computeMatch(applicant, program, benchmarkMode);
+  lastResult = result;
+  lastApplicantName = applicant.name;
+  lastProgramLabel = program.label;
+  renderResult(result);
+  document.getElementById("aiBtn").disabled = false;
+  document.getElementById("addShortlistBtn").disabled = false;
+});
+
+function renderResult(result) {
+  document.getElementById("resultEmpty").style.display = "none";
+  document.getElementById("resultBody").style.display = "block";
+  document.getElementById("scoreBig").textContent = result.composite + " / 100";
+  document.getElementById("scoreBig").style.color = result.color;
+
+  const badge = document.getElementById("tierBadge");
+  badge.textContent = `${result.letter} · ${result.tier}`;
+  badge.style.background = result.color;
+  document.getElementById("resultBody").querySelectorAll(".predicted-avg-note").forEach(n => n.remove());
+  const avgNote = document.createElement("div");
+  avgNote.className = "hint predicted-avg-note";
+  avgNote.style.marginTop = "6px";
+  avgNote.textContent = `最优3科平均换算分：${result.predictedAverage} / 4.30`;
+  badge.insertAdjacentElement("afterend", avgNote);
+
+  const barsContainer = document.getElementById("barsContainer");
+  barsContainer.innerHTML = "";
+  Object.entries(result.subScores).forEach(([label, value]) => {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML = `
+      <div class="bar-label">${label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${value}%"></div></div>
+      <div class="bar-value">${Math.round(value)}</div>
+    `;
+    barsContainer.appendChild(row);
+  });
+
+  const warningsContainer = document.getElementById("warningsContainer");
+  warningsContainer.innerHTML = "";
+  result.warnings.forEach(w => {
+    const box = document.createElement("div");
+    box.className = "warn-box";
+    box.textContent = "⚠ " + w;
+    warningsContainer.appendChild(box);
+  });
+}
+
+/* ---------------- UCAS 五选校方案 ---------------- */
+document.getElementById("generateStrategyBtn").addEventListener("click", () => {
+  const applicant = buildApplicantFromForm();
+  const benchmarkMode = document.getElementById("benchmarkMode").value;
+
+  const allResults = Object.entries(PROGRAMS).map(([key, program]) => ({
+    key, label: program.label, result: computeMatch(applicant, program, benchmarkMode)
+  })).sort((a, b) => b.result.composite - a.result.composite);
+
+  const strategies = generateStrategies(allResults);
+
+  const container = document.getElementById("strategyOutput");
+  container.style.display = "block";
+  container.innerHTML = "";
+
+  strategies.forEach(strat => {
+    const card = document.createElement("div");
+    card.className = "strategy-card";
+    let html = `<h3>${strat.label}方案</h3><div class="strategy-desc">${strat.desc}</div>`;
+    strat.picks.forEach(p => {
+      html += `
+        <div class="school-row">
+          <span>${p.label}</span>
+          <span>${p.result.composite}分 <span class="tier-chip" style="background:${p.result.color}">${p.result.letter}</span></span>
+        </div>`;
+    });
+    if (strat.notes.length) {
+      html += strat.notes.map(n => `<div class="hint" style="margin-top:6px;">⚠ ${n}</div>`).join("");
+    }
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+
+  const allNote = document.createElement("div");
+  allNote.className = "hint";
+  allNote.textContent = "以上方案均基于当前左侧填写的资料与所选参考基准(中国区/官网)自动生成，仅供参考，最终选校请结合个人偏好、专业方向与最新官网信息综合判断。";
+  container.appendChild(allNote);
+});
+
+/* ---------------- AI 建议生成 ---------------- */
+function buildPrompt(applicantName, programLabel, result) {
+  const subScoresText = Object.entries(result.subScores)
+    .map(([k, v]) => `- ${k}: ${Math.round(v)}/100`).join("\n");
+  const warningsText = result.warnings.length ? result.warnings.map(w => "- " + w).join("\n") : "（无特别提示）";
+  return `你是一名资深留学申请顾问。请根据下面的量化匹配度评估结果，为申请人写一段简洁、具体、可执行的中文申请建议(200-300字)。
+
+申请人: ${applicantName}
+目标项目: ${programLabel}
+综合匹配分: ${result.composite}/100，等级: ${result.letter} (${result.tier})
+
+各维度得分:
+${subScoresText}
+
+系统提示的风险点:
+${warningsText}
+
+请输出三部分，each用一句话概括即可，然后各配1-2条具体建议：
+1. 优势总结
+2. 主要短板
+3. 接下来2-3件最该优先做的事(要具体、可执行，不要泛泛而谈)
+不要输出多余的开场白或免责声明，直接进入内容。`;
+}
+
+function fallbackAdvice(applicantName, programLabel, result) {
+  const entries = Object.entries(result.subScores).sort((a, b) => b[1] - a[1]);
+  const k = Math.max(1, Math.min(3, Math.floor(entries.length / 2)));
+  const strengths = entries.slice(0, k).map(e => e[0]);
+  const weaknesses = entries.slice(-k).map(e => e[0]);
+  let text = `[离线兜底模式 - 未调用大模型API，以下建议由本地规则生成]\n\n`;
+  text += `1. 优势总结：${applicantName} 在「${strengths.join("、")}」上表现较强，与 ${programLabel} 的要求匹配度较高。\n\n`;
+  text += `2. 主要短板：相对而言「${weaknesses.join("、")}」是当前的短板，是拉低综合匹配分的主要原因。\n\n`;
+  text += `3. 接下来优先做的事：\n`;
+  if (result.warnings.length) {
+    result.warnings.forEach(w => text += `   - ${w}\n`);
+  } else {
+    text += `   - 针对「${weaknesses[0]}」制定一个3个月内可完成的提升计划。\n`;
+  }
+  text += `   - 综合匹配分 ${result.composite}/100（${result.letter}），建议同时准备1-2所匹配度更高的保底项目。`;
+  return text;
+}
+
+async function callAnthropic(prompt, apiKey) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-5",
+      max_tokens: 600,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if (!resp.ok) throw new Error("Anthropic API error: " + resp.status);
+  const data = await resp.json();
+  return (data.content || []).map(b => b.text || "").join("");
+}
+
+async function callOpenAI(prompt, apiKey) {
+  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", "Authorization": "Bearer " + apiKey },
+    body: JSON.stringify({
+      model: "gpt-4o-mini", max_tokens: 600,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if (!resp.ok) throw new Error("OpenAI API error: " + resp.status);
+  const data = await resp.json();
+  return data.choices[0].message.content;
+}
+
+document.getElementById("aiBtn").addEventListener("click", async () => {
+  if (!lastResult) return;
+  const btn = document.getElementById("aiBtn");
+  btn.disabled = true; btn.textContent = "生成中...";
+
+  const apiKey = document.getElementById("apiKey").value.trim();
+  const provider = document.getElementById("aiProvider").value;
+  const prompt = buildPrompt(lastApplicantName, lastProgramLabel, lastResult);
+
+  let text, source;
+  try {
+    if (!apiKey) throw new Error("no key");
+    text = provider === "anthropic" ? await callAnthropic(prompt, apiKey) : await callOpenAI(prompt, apiKey);
+    source = provider === "anthropic" ? "来源：Anthropic Claude API 实时生成" : "来源：OpenAI API 实时生成";
+  } catch (e) {
+    text = fallbackAdvice(lastApplicantName, lastProgramLabel, lastResult);
+    source = "来源：离线模板兜底 (未配置/调用API失败：" + e.message + ")";
+  }
+
+  document.getElementById("aiOutput").style.display = "block";
+  document.getElementById("aiText").textContent = text;
+  document.getElementById("aiSource").textContent = source;
+  btn.disabled = false; btn.textContent = "生成 AI 建议";
+});
+
+/* ---------------- 选校清单 (user action) ---------------- */
+const shortlist = [];
+document.getElementById("addShortlistBtn").addEventListener("click", () => {
+  if (!lastResult) return;
+  shortlist.push({ name: lastApplicantName, program: lastProgramLabel, score: lastResult.composite, letter: lastResult.letter });
+  renderShortlist();
+});
+
+function renderShortlist() {
+  const table = document.getElementById("shortlistTable");
+  const body = document.getElementById("shortlistBody");
+  const empty = document.getElementById("shortlistEmpty");
+  if (shortlist.length === 0) { table.style.display = "none"; empty.style.display = "block"; return; }
+  table.style.display = "table"; empty.style.display = "none";
+  body.innerHTML = "";
+  shortlist.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${row.name}</td><td>${row.program}</td><td>${row.score}</td><td>${row.letter}</td>`;
+    body.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>
